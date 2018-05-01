@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 
+#include <cstdint>
 #include <cstdlib>
 #include <strings.h>
 
@@ -10,6 +11,7 @@
 #include <cryptopp/filters.h>
 #include <cryptopp/hex.h>
 #include <cryptopp/hmac.h>
+#include <cryptopp/misc.h>
 #include <cryptopp/modes.h>
 #include <cryptopp/secblock.h>
 #include <cryptopp/sha.h>
@@ -19,6 +21,8 @@ using CryptoPP::HMAC;
 using CryptoPP::SHA256;
 using CryptoPP::Twofish;
 using CryptoPP::HexEncoder;
+
+typedef uint8_t byte;
 
 const uint8_t TAG_V3[] = { 'P', 'W', 'S', '3' };
 const uint8_t EOF_V3[] = { 'P', 'W', 'S', '3', '-', 'E', 'O', 'F',
@@ -55,7 +59,7 @@ int main(int argc, char *argv[])
         uint8_t h_p[SHA256::DIGESTSIZE];
         uint8_t salt[32];
         uint32_t iters;
-        fs.read((char *)salt, 32);
+        fs.read((char *)salt, sizeof(salt));
         fs.read((char *)&iters, sizeof(iters));
         fs.read((char *)h_p, sizeof(h_p));
         uint8_t outKey[SHA256::DIGESTSIZE];
@@ -71,7 +75,7 @@ int main(int argc, char *argv[])
 
         encoder.Put(outKey, sizeof(outKey));
         encoder.MessageEnd();
-        std::cout << "Master Key: " << output << std::endl;
+        std::cout << " Master Key: " << output << std::endl;
         output.clear();
 
         /* Decrypt K and L */
@@ -116,9 +120,9 @@ int main(int argc, char *argv[])
         d2.SetKeyWithIV(K, K.size(), IV, IV.size());
 
         std::cout << std::endl << "Headers:" << std::endl;
+        const int32_t BLOCKSIZE = Twofish::BLOCKSIZE;
         bool eof = false, headers = true;
         while(!eof) {
-            const int32_t BLOCKSIZE = Twofish::BLOCKSIZE;
             uint8_t buf2[32], plain[256];
             uint32_t fieldLen = 0, i = 0, j = 0;
             uint8_t fieldType = 0;
@@ -156,7 +160,7 @@ int main(int argc, char *argv[])
 
                 encoder.Put(buf2, sizeof(buf2));
                 encoder.MessageEnd();
-                std::cout << "Stored HMAC: " << output << std::endl;
+                std::cout << "  Stored HMAC: " << output << std::endl;
                 output.clear();
 
                 encoder.Put(plain, 32);
@@ -164,7 +168,7 @@ int main(int argc, char *argv[])
                 std::cout << "Computed HMAC: " << output << std::endl;
                 output.clear();
 
-                if (memcmp(buf2, plain, 32) == 0) {
+                if (CryptoPP::VerifyBufsEqual(buf2, plain, sizeof(buf2))) {
                     std::cout << "Data validated successfully!" << std::endl;
                 } else {
                     std::cout << "Data failed validation!" << std::endl;
@@ -172,7 +176,7 @@ int main(int argc, char *argv[])
 
                 break;
             }
-            
+
             if (fieldLen > 0) {
                 encoder.Put(&plain[5], fieldLen);
                 encoder.MessageEnd();
