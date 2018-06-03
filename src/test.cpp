@@ -64,6 +64,8 @@ int main(int argc, char *argv[])
         fs.read((char *)h_p, sizeof(h_p));
         uint8_t outKey[SHA256::DIGESTSIZE];
 
+        std::cout << "Iters: " << iters << std::endl;
+
         Stretch_Key(salt, sizeof(salt), (uint8_t *)(argv[2]), strlen(argv[2]),
                     iters, outKey);
 
@@ -203,7 +205,7 @@ void Stretch_Key(uint8_t *salt, size_t saltLen,
                  uint8_t *passkey, size_t passkeyLen,
                  uint32_t iters, uint8_t *outKey)
 {
-    uint8_t digest[SHA256::DIGESTSIZE];
+    CryptoPP::SecByteBlock digest(SHA256::DIGESTSIZE);
     SHA256 H;
 
     H.Update(passkey, passkeyLen);
@@ -215,5 +217,5 @@ void Stretch_Key(uint8_t *salt, size_t saltLen,
         H.Final(digest);
     }
 
-    memcpy(outKey, digest, sizeof(digest));
+    memcpy(outKey, digest, digest.size());
 }
